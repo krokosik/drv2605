@@ -7,7 +7,7 @@ extern crate embedded_hal as hal;
 #[macro_use]
 extern crate bitfield;
 
-use hal::blocking::i2c::{Write, WriteRead};
+use hal::i2c::I2c;
 
 bitfield!{
     pub struct StatusReg(u8);
@@ -767,21 +767,21 @@ pub const ADDRESS: u8 = 0x5a;
 
 pub struct Drv2605<I2C>
 where
-    I2C: WriteRead + Write,
+    I2C: I2c,
 {
     i2c: I2C,
 }
 
-impl<I2C, E> Drv2605<I2C>
+impl<I2C> Drv2605<I2C>
 where
-    I2C: WriteRead<Error = E> + Write<Error = E>,
+    I2C: I2c,
 {
     /// Construct a driver instance, but don't do any initialization
     pub fn new(i2c: I2C) -> Self {
         Self { i2c }
     }
 
-    pub fn init_open_loop_erm(&mut self) -> Result<(), E> {
+    pub fn init_open_loop_erm(&mut self) -> Result<(), I2C::Error> {
         self.set_standby(false)?;
         self.set_realtime_playback_input(0)?;
         self.set_waveform(&[
@@ -806,36 +806,36 @@ where
     }
 
     /// Write `value` to `register`
-    fn write(&mut self, register: Register, value: u8) -> Result<(), E> {
+    fn write(&mut self, register: Register, value: u8) -> Result<(), I2C::Error> {
         self.i2c.write(ADDRESS, &[register as u8, value])
     }
 
     /// Read an 8-bit value from the register
-    fn read(&mut self, register: Register) -> Result<u8, E> {
+    fn read(&mut self, register: Register) -> Result<u8, I2C::Error> {
         let mut buf = [0u8; 1];
         self.i2c.write_read(ADDRESS, &[register as u8], &mut buf)?;
         Ok(buf[0])
     }
 
-    pub fn get_status(&mut self) -> Result<StatusReg, E> {
+    pub fn get_status(&mut self) -> Result<StatusReg, I2C::Error> {
         self.read(Register::Status).map(StatusReg)
     }
 
-    pub fn get_mode(&mut self) -> Result<ModeReg, E> {
+    pub fn get_mode(&mut self) -> Result<ModeReg, I2C::Error> {
         self.read(Register::Mode).map(ModeReg)
     }
 
     /// performs the equivalent operation of power
     /// cycling the device. Any playback operations are immediately interrupted,
     /// and all registers are reset to the default values.
-    pub fn reset(&mut self) -> Result<(), E> {
+    pub fn reset(&mut self) -> Result<(), I2C::Error> {
         let mut mode = ModeReg(0);
         mode.set_dev_reset(true);
         self.write(Register::Mode, mode.0)
     }
 
     /// Put the device into standby mode, or wake it up from standby
-    pub fn set_standby(&mut self, standby: bool) -> Result<(), E> {
+    pub fn set_standby(&mut self, standby: bool) -> Result<(), I2C::Error> {
         let mut mode = ModeReg(self.read(Register::Mode)?);
         mode.set_standby(standby);
         self.write(Register::Mode, mode.0)
@@ -849,7 +849,7 @@ where
     /// unsigned by the DATA_FORMAT_RTP bit in register 0x1D. When the
     /// haptic waveform is complete, the user can idle the device by setting
     /// MODE[2:0] = 0, or alternatively by setting STANDBY = 1.
-    pub fn set_realtime_playback_input(&mut self, value: i8) -> Result<(), E> {
+    pub fn set_realtime_playback_input(&mut self, value: i8) -> Result<(), I2C::Error> {
         self.write(Register::RealTimePlaybackInput, value as u8)
     }
 
@@ -858,21 +858,21 @@ where
     /// shutdown or standby mode, the output drivers have 15 kΩ to ground. When
     /// the HI_Z bit is asserted, the hi-Z functionality takes effect immediately, even
     /// if a transaction is taking place.
-    pub fn set_high_impedance_state(&mut self, value: bool) -> Result<(), E> {
+    pub fn set_high_impedance_state(&mut self, value: bool) -> Result<(), I2C::Error> {
         let mut register = RegisterThree(self.read(Register::Register3)?);
         register.set_hi_z(value);
         self.write(Register::Register3, register.0)
     }
 
     /// Selects the library the playback engine selects when the GO bit is set.
-    pub fn set_library(&mut self, value: LibrarySelection) -> Result<(), E> {
+    pub fn set_library(&mut self, value: LibrarySelection) -> Result<(), I2C::Error> {
         let mut register = RegisterThree(self.read(Register::Register3)?);
         register.set_library_selection(value as u8);
         self.write(Register::Register3, register.0)
     }
 
     /// Sets the waveform generation registers to the shape provided
-    pub fn set_waveform(&mut self, waveform: &[WaveformReg; 8]) -> Result<(), E> {
+    pub fn set_waveform(&mut self, waveform: &[WaveformReg; 8]) -> Result<(), I2C::Error> {
         let buf: [u8; 9] = [
             Register::WaveformSequence0 as u8,
             waveform[0].0,
@@ -887,7 +887,7 @@ where
         self.i2c.write(ADDRESS, &buf)
     }
 
-    pub fn set_single_effect(&mut self, effect: Effect) -> Result<(), E> {
+    pub fn set_single_effect(&mut self, effect: Effect) -> Result<(), I2C::Error> {
         let buf: [u8; 3] = [
             Register::WaveformSequence0 as u8,
             WaveformReg::new_effect(effect).0,
@@ -906,7 +906,7 @@ where
     /// waveform sequence. Using one of the external trigger modes can cause
     /// the GO bit to be set or cleared by the external trigger pin. This bit can also
     /// be used to fire the auto-calibration process or the diagnostic process.
-    pub fn set_go(&mut self, go: bool) -> Result<(), E> {
+    pub fn set_go(&mut self, go: bool) -> Result<(), I2C::Error> {
         let mut register = GoReg(self.read(Register::Go)?);
         register.set_go(go);
         self.write(Register::Go, register.0)
@@ -922,7 +922,7 @@ where
     /// positive or negative.
     /// Overdrive Time Offset (ms) = ODT[7:0] × PLAYBACK_INTERVAL
     /// See the section for PLAYBACK_INTERVAL details.
-    pub fn set_overdrive_time_offset(&mut self, value: i8) -> Result<(), E> {
+    pub fn set_overdrive_time_offset(&mut self, value: i8) -> Result<(), I2C::Error> {
         self.write(Register::OverdriveTimeOffset, value as u8)
     }
 
@@ -934,7 +934,7 @@ where
     /// interpreted as 2s complement, so the time offset can positive or negative.
     /// Sustain-Time Positive Offset (ms) = SPT[7:0] × PLAYBACK_INTERVAL
     /// See the section for PLAYBACK_INTERVAL details.
-    pub fn set_sustain_time_offset_positive(&mut self, value: i8) -> Result<(), E> {
+    pub fn set_sustain_time_offset_positive(&mut self, value: i8) -> Result<(), I2C::Error> {
         self.write(Register::SustainTimeOffsetPositive, value as u8)
     }
 
@@ -947,7 +947,7 @@ where
     /// negative.
     /// Sustain-Time Negative Offset (ms) = SNT[7:0] × PLAYBACK_INTERVAL
     /// See the section for PLAYBACK_INTERVAL details.
-    pub fn set_sustain_time_offset_negative(&mut self, value: i8) -> Result<(), E> {
+    pub fn set_sustain_time_offset_negative(&mut self, value: i8) -> Result<(), I2C::Error> {
         self.write(Register::SustainTimeOffsetNegative, value as u8)
     }
 
@@ -960,7 +960,7 @@ where
     /// 2s complement, so the time offset can be positive or negative.
     /// Brake Time Offset (ms) = BRT[7:0] × PLAYBACK_INTERVAL
     /// See the section for PLAYBACK_INTERVAL details.
-    pub fn set_brake_time_offset(&mut self, value: i8) -> Result<(), E> {
+    pub fn set_brake_time_offset(&mut self, value: i8) -> Result<(), I2C::Error> {
         self.write(Register::BrakeTimeOffset, value as u8)
     }
 }
