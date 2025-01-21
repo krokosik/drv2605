@@ -765,6 +765,14 @@ pub enum Register {
 /// multiple units emit the same waveform
 pub const ADDRESS: u8 = 0x5a;
 
+pub struct CalibrationParams {
+    pub brake_factor: u8,
+    pub loop_gain: u8,
+    pub auto_cal_time: u8,
+    pub overdrive_clamp_voltage: u8,
+    pub rated_voltage: u8,
+}
+
 pub struct Drv2605<I2C>
 where
     I2C: I2c,
@@ -815,6 +823,29 @@ where
         let mut buf = [0u8; 1];
         self.i2c.write_read(ADDRESS, &[register as u8], &mut buf)?;
         Ok(buf[0])
+    }
+
+    /// Performs the autocalibration routine on the device
+    pub fn calibrate(&mut self, values: CalibrationParams) -> Result<(), I2C::Error> {
+        self.write(Register::Mode, 7)?;
+
+        let mut feedback = FeedbackControlReg(self.read(Register::FeedbackControl)?);
+        feedback.set_fb_brake_factor(values.brake_factor);
+        feedback.set_loop_gain(values.loop_gain);
+        self.write(Register::FeedbackControl, feedback.0)?;
+
+        let mut control4 = Control4Reg(self.read(Register::Control4)?);
+        control4.set_auto_cal_time(values.auto_cal_time);
+        self.write(Register::Control4, control4.0)?;
+
+        self.write(
+            Register::OverdriveClampVoltage,
+            values.overdrive_clamp_voltage,
+        )?;
+        self.write(Register::RatedVoltage, values.rated_voltage)?;
+
+        self.set_go(true)?;
+        Ok(())
     }
 
     pub fn get_status(&mut self) -> Result<StatusReg, I2C::Error> {
