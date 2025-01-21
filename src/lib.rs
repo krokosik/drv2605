@@ -9,7 +9,7 @@ extern crate bitfield;
 
 use hal::i2c::I2c;
 
-bitfield!{
+bitfield! {
     pub struct StatusReg(u8);
     impl Debug;
     /// Latching overcurrent detection flag.  If the load impedance is below
@@ -100,7 +100,7 @@ impl From<u8> for Mode {
     }
 }
 
-bitfield!{
+bitfield! {
     pub struct ModeReg(u8);
     impl Debug;
     /// Device reset. Setting this bit performs the equivalent operation of power
@@ -146,7 +146,7 @@ impl From<u8> for LibrarySelection {
     }
 }
 
-bitfield!{
+bitfield! {
     pub struct RegisterThree(u8);
     impl Debug;
     /// This bit sets the output driver into a true high-impedance state. The device
@@ -413,7 +413,7 @@ pub enum Effect {
     SmoothHumFive10 = 123,
 }
 
-bitfield!{
+bitfield! {
     pub struct WaveformReg(u8);
     impl Debug;
     /// When this bit is set, the WAV_FRM_SEQ[6:0] bit is interpreted as a wait
@@ -463,7 +463,7 @@ impl WaveformReg {
     }
 }
 
-bitfield!{
+bitfield! {
     pub struct GoReg(u8);
     impl Debug;
     /// This bit is used to fire processes in the DRV2605 device. The process
@@ -479,7 +479,7 @@ bitfield!{
     pub go, set_go: 0;
 }
 
-bitfield!{
+bitfield! {
     pub struct FeedbackControlReg(u8);
     impl Debug;
 
@@ -534,7 +534,7 @@ bitfield!{
     pub bemf_gain, set_bemf_gain: 1, 0;
 }
 
-bitfield!{
+bitfield! {
     pub struct Control1Reg(u8);
     impl Debug;
     /// This bit applies higher loop gain during overdrive to enhance actuator transient response.
@@ -558,7 +558,7 @@ bitfield!{
     pub drive_time, set_drive_time: 4, 0;
 }
 
-bitfield!{
+bitfield! {
     pub struct Control2Reg(u8);
     impl Debug;
     /// The BIDIR_INPUT bit selects how the engine interprets data.
@@ -606,7 +606,7 @@ bitfield!{
     pub idiss_time, set_idiss_time: 1, 0;
 }
 
-bitfield!{
+bitfield! {
     pub struct Control3Reg(u8);
     impl Debug;
 
@@ -660,7 +660,7 @@ bitfield!{
     pub lra_open_loop, set_lra_open_loop: 0;
 }
 
-bitfield!{
+bitfield! {
     pub struct Control4Reg(u8);
     impl Debug;
 
